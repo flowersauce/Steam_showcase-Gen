@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.1)
-project(Steam_showcase-Gen)
+project(Steam_showcase-Gen VERSION 1.0.0 LANGUAGES C CXX)
 
 set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "" FORCE)
 
@@ -23,18 +23,23 @@ add_executable(Steam_showcase-Gen
         ${RC_FILE}
 )
 
+# 目标文件命名
 set_target_properties(Steam_showcase-Gen PROPERTIES
         OUTPUT_NAME "SS-G"
         DEBUG_POSTFIX "_debug"
 )
 
 # 版本与信息定义
-set(APP_VERSION "1.0.0")
-set(APP_REPO_URL "github.com/flowersauce/Steam_showcase-Gen")
-set(APP_AUTHOR "Flowersauce")
-set(APP_LICENSE "MIT License")
 string(TIMESTAMP APP_BUILD_DATE "%Y-%m-%d")
 string(TIMESTAMP APP_BUILD_YEAR "%Y")
+target_compile_definitions(Steam_showcase-Gen PRIVATE
+        APP_VERSION="${PROJECT_VERSION}"
+        APP_REPO_URL="github.com/flowersauce/Steam_showcase-Gen"
+        APP_AUTHOR="Flowersauce"
+        APP_LICENSE="MIT License"
+        APP_BUILD_DATE="${APP_BUILD_DATE}"
+        APP_BUILD_YEAR="${APP_BUILD_YEAR}"
+)
 
 # 语言选择与宏定义
 target_compile_definitions(Steam_showcase-Gen PRIVATE
