@@ -1,6 +1,4 @@
-# Steam Showcase Generator —— SS-G
-
-### STEAM 创意工坊展柜图像生成器
+![项目头图](assets/design/readme_header.svg)
 
 ![Interface](https://img.shields.io/badge/Interface-TUI-success.svg?style=flat-square&logo=gnometerminal)
 ![C++](https://img.shields.io/badge/C%2B%2B-23-blue.svg?style=flat-square&logo=c%2B%2B)
