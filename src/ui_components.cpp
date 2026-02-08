@@ -16,7 +16,7 @@ namespace SteamShowcaseGen::Ui
 	using namespace ftxui;
 	namespace txt = AppText;
 
-	// === 辅助函数：复制到剪贴板 ===
+	// 辅助函数：复制到剪贴板
 	void copy_to_clipboard(const std::string &text)
 	{
 #ifdef _WIN32
@@ -135,6 +135,9 @@ namespace SteamShowcaseGen::Ui
 		auto slider_samp  = Slider("", &state.sampling_rate, 1, 10, 1);
 		auto menu_quality = Menu(&q_labels, &state.quality_idx, quality_opt);
 
+		// 定义标准长度为 10
+		constexpr int STD_W = 10;
+
 		auto	   left_col	 = Container::Vertical({input_src, btn_scan, menu_file});
 		auto	   right_col = Container::Vertical({input_out, slider_samp, menu_quality});
 		const auto container = Container::Horizontal({left_col, right_col});
@@ -144,44 +147,42 @@ namespace SteamShowcaseGen::Ui
 						{
 							int				  div		  = 11 - state.sampling_rate;
 							const std::string display_str = (state.sampling_rate == 10) ? "N/A" : std::format("1/{}", div);
-							constexpr int	  LABEL_WIDTH = 12;
-							constexpr int	  VALUE_WIDTH = 7;
 
 							// 资源视图
-							auto resource_view = vbox({hbox({text(std::string(txt::LABEL_DIR_SRC)) | vcenter | size(WIDTH, EQUAL, LABEL_WIDTH),
+							const auto resource_view = vbox({hbox({text(std::string(txt::LABEL_DIR_SRC)) | vcenter | size(WIDTH, EQUAL, STD_W),
+																   separator(),
+																   input_src->Render() | size(WIDTH, EQUAL, 40),
+																   filler(),
+																   separator(),
+																   btn_scan->Render() | center | size(WIDTH, EQUAL, STD_W)})
+																 | size(HEIGHT, EQUAL, 1),
 															 separator(),
-															 input_src->Render() | size(WIDTH, EQUAL, 40),
-															 filler(),
-															 separator(),
-															 btn_scan->Render()})
-														   | size(HEIGHT, EQUAL, 1),
-													   separator(),
-													   vbox({text(std::string((txt::LABEL_FILE_LIST))) | bold,
-															 separator(),
-															 hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 48)})})
-														   | flex})
+															 vbox({text(std::string((txt::LABEL_FILE_LIST))) | bold,
+																   separator(),
+																   hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 48)})})
+																 | flex})
 								| border | flex;
 
 							// 设置视图
-							auto config_view = vbox({hbox({text(std::string((txt::LABEL_DIR_OUT))) | vcenter | size(WIDTH, EQUAL, LABEL_WIDTH),
+							const auto config_view = vbox({hbox({text(std::string((txt::LABEL_DIR_OUT))) | vcenter | size(WIDTH, EQUAL, STD_W),
+																 separator(),
+																 input_out->Render() | size(WIDTH, EQUAL, 40),
+																 filler()})
+															   | size(HEIGHT, EQUAL, 1),
 														   separator(),
-														   input_out->Render() | size(WIDTH, EQUAL, 40),
-														   filler()})
-														 | size(HEIGHT, EQUAL, 1),
-													 separator(),
-													 hbox({text(std::string((txt::LABEL_SAMPLING))) | vcenter | size(WIDTH, EQUAL, LABEL_WIDTH),
+														   hbox({text(std::string((txt::LABEL_SAMPLING))) | vcenter | size(WIDTH, EQUAL, STD_W),
+																 separator(),
+																 slider_samp->Render() | flex,
+																 separator(),
+																 text(display_str) | dim | center | size(WIDTH, EQUAL, STD_W)})
+															   | size(HEIGHT, EQUAL, 1),
 														   separator(),
-														   slider_samp->Render() | flex,
+														   text(std::string((txt::LABEL_QUALITY))) | bold,
 														   separator(),
-														   text(display_str) | center | dim | size(WIDTH, EQUAL, VALUE_WIDTH)})
-														 | size(HEIGHT, EQUAL, 1),
-													 separator(),
-													 text(std::string((txt::LABEL_QUALITY))) | bold,
-													 separator(),
-													 hbox({text(" "), menu_quality->Render() | flex}) | flex})
+														   hbox({text(" "), menu_quality->Render() | flex}) | flex})
 								| border | flex;
 
-							return hbox({resource_view, config_view});
+							return hbox({resource_view, text(" "), config_view});
 						});
 	}
 
@@ -279,10 +280,11 @@ namespace SteamShowcaseGen::Ui
 	{
 		const auto icon = is_processing ? spinner(12, state.spinner_index) | color(Color::Yellow) | bold : text("●") | color(Color::Green);
 
+		// [开始按钮] 这里保持原样 (size|center)，因为 btn_start 内部 render 已经处理了内容居中，这里是对整个按钮组件居中
 		return hbox({icon | center | size(WIDTH, EQUAL, 3),
 					 text(state.current_log) | vcenter | flex,
 					 separator(),
-					 btn_start->Render() | size(WIDTH, EQUAL, 16) | center})
+					 btn_start->Render() | size(WIDTH, EQUAL, 20) | center})
 			| border | size(HEIGHT, EQUAL, 3);
 	}
 } // namespace SteamShowcaseGen::Ui

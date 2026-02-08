@@ -10,7 +10,7 @@
 
 namespace SteamShowcaseGen::AppText
 {
-	// === 动态版权信息 ===
+	// 动态版权信息
 	inline constexpr std::string_view VAL_COPYRIGHT = "Copyright (c) " APP_BUILD_YEAR " " APP_AUTHOR ". " APP_LICENSE ".";
 
 #ifdef LANG_ZH_CN
@@ -18,13 +18,13 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view TAB_MAIN	= "主页";
 	inline constexpr std::string_view TAB_ABOUT = "关于";
 
-	// === 主页资源区 ===
+	// 主页资源区
 	inline constexpr std::string_view LABEL_DIR_SRC	  = " 目录";
 	inline constexpr std::string_view PLACEHOLDER_SRC = "源文件目录路径";
 	inline constexpr std::string_view BTN_SCAN		  = "扫描";
 	inline constexpr std::string_view LABEL_FILE_LIST = " 文件列表";
 
-	// === 主页输出区 ===
+	// 主页输出区
 	inline constexpr std::string_view LABEL_DIR_OUT	  = " 输出路径";
 	inline constexpr std::string_view PLACEHOLDER_OUT = "输出保存路径";
 	inline constexpr std::string_view LABEL_SAMPLING  = " 帧采样率";
@@ -35,7 +35,7 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view QUALITY_HIGH	 = "高质量 (双三次)";
 	inline constexpr std::string_view QUALITY_BEST	 = "极高   (Lanczos)";
 
-	// === 运行状态与日志 ===
+	// 运行状态与日志
 	inline constexpr std::string_view BTN_START		 = "开始生成";
 	inline constexpr std::string_view BTN_PROCESSING = "生成中";
 
@@ -54,14 +54,14 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view TAG_NO_FILE	  = "<无文件>";
 	inline constexpr std::string_view TAG_INVALID_DIR = "<无效目录>";
 
-	// === 关于页 ===
+	// 关于页
 	inline constexpr std::string_view LABEL_VERSION = " Version : ";
 	inline constexpr std::string_view LABEL_REPO	= " Repo : ";
 
 	inline constexpr std::string_view ABOUT_HEADER_SYSTEM = " 系统信息 ";
 	inline constexpr std::string_view ABOUT_HEADER_GUIDE  = " 使用教程 ";
 
-	// === 教程分段文本 ===
+	// 教程分段文本
 	// 步骤 1: 软件操作
 	inline constexpr std::string_view GUIDE_STEP_1_TEXT = "选择目标图片或视频 -> 点击 [开始生成] -> 得到切片文件";
 

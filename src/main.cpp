@@ -27,19 +27,19 @@ int main()
 	{
 		namespace fs = std::filesystem;
 
-		// 1. 创建默认源文件目录 (target_resource)
+		// 1. 创建默认源文件目录
 		if (!fs::exists(app_state.src_dir))
 		{
 			fs::create_directories(app_state.src_dir);
 		}
 
-		// 2. 创建默认输出目录 (output)
+		// 2. 创建默认输出目录
 		if (!fs::exists(app_state.out_dir))
 		{
 			fs::create_directories(app_state.out_dir);
 		}
 
-		// 3. 创建运行时 log 输出目录 (log)
+		// 3. 创建运行时 log 输出目录
 		if (!fs::exists("log"))
 		{
 			fs::create_directories("log");
@@ -89,21 +89,27 @@ int main()
 
 	std::vector tab_labels = {std::string(ssg::AppText::TAB_MAIN), std::string(ssg::AppText::TAB_ABOUT)};
 
-	MenuOption tab_opt				 = MenuOption::Horizontal();
+	MenuOption tab_opt = MenuOption::Horizontal();
+
+	tab_opt.elements_infix			 = [] { return text(""); };
 	tab_opt.entries_option.transform = [](const EntryState &s)
 	{
 		auto element = text(s.label);
 		if (s.active)
 		{
-			element |= bold | color(Color::Blue);
+			const Color active_color = (s.index == 0) ? Color::Cyan : Color::Blue;
+			element |= bold | color(active_color);
 		}
 
-		auto item_content = s.focused ? hbox({text("[") | dim, element, text("]") | dim}) : hbox({text(" "), element, text(" ")});
+		auto item_content = s.focused ? hbox({text("[") | dim, element, text("]") | dim}) : element;
+
+		item_content = item_content | center | size(WIDTH, EQUAL, 10);
 
 		if (s.index > 0)
 		{
-			return hbox({separator(), text(" "), item_content, text(" ")});
+			return hbox({separator(), item_content});
 		}
+
 		return item_content;
 	};
 
@@ -115,21 +121,19 @@ int main()
 	auto root_renderer = Renderer(root_container,
 								  [&]
 								  {
-									  auto header = hbox({text(std::string(ssg::AppText::TITLE)) | bold | color(Color::Blue), filler(), tab_toggle->Render()})
+									  auto header =
+										  hbox({text(std::string(ssg::AppText::TITLE)) | bold | color(Color::Blue), filler(), text(" "), tab_toggle->Render()})
 										  | borderRounded | color(Color::Default) | size(HEIGHT, EQUAL, 3);
 
 									  if (app_state.tab_idx == 1)
 									  {
 										  return vbox({header, about_page->Render() | flex});
 									  }
-									  else
-									  {
-										  return vbox({
-											  header,
-											  tab_view->Render() | flex,
-											  ssg::Ui::render_status_bar(app_state, processor.is_active(), btn_start),
-										  });
-									  }
+									  return vbox({
+										  header,
+										  tab_view->Render() | flex,
+										  ssg::Ui::render_status_bar(app_state, processor.is_active(), btn_start),
+									  });
 								  });
 
 	std::jthread anim_worker(
