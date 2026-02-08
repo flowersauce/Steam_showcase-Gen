@@ -5,51 +5,91 @@
 #include <ranges>
 #include "app_text.hpp"
 #include "ftxui/dom/elements.hpp"
-
-#ifdef _WIN32
-#define NOMINMAX
-#include <windows.h>
-#endif
+#include "platform_utils.h"
 
 namespace SteamShowcaseGen::Ui
 {
 	using namespace ftxui;
 	namespace txt = AppText;
+	namespace fs  = std::filesystem;
 
-	// 辅助函数：复制到剪贴板
-	void copy_to_clipboard(const std::string &text)
+	// --- 内部辅助函数声明 ---
+	static Component MakeHomeTab(AppState &state);
+	static Component MakeAboutTab();
+	static Component MakeStartButton(const std::function<void()> &on_start, const std::function<bool()> &is_busy);
+	static Element	 RenderHeader(const Component &tab_toggle);
+	static Element	 RenderStatusBar(const AppState &state, bool is_busy, const Component &btn_start);
+
+	// --- 核心入口 ---
+	Component BuildMainInterface(AppState &state, const std::function<void()> &on_start, const std::function<bool()> &is_busy)
 	{
-#ifdef _WIN32
-		if (!OpenClipboard(nullptr))
+		// 1. 构建各子页面
+		auto home_page	= MakeHomeTab(state);
+		auto about_page = MakeAboutTab();
+		auto btn_start	= MakeStartButton(on_start, is_busy);
+
+		// 2. 构建 Tab 切换栏
+		static std::vector<std::string> tab_labels = {std::string(txt::TAB_MAIN), std::string(txt::TAB_ABOUT)};
+
+		MenuOption tab_opt				 = MenuOption::Horizontal();
+		tab_opt.elements_infix			 = [] { return text(""); };
+		tab_opt.entries_option.transform = [](const EntryState &s)
 		{
-			return;
-		}
-		EmptyClipboard();
-		const HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
-		if (!hg)
-		{
-			CloseClipboard();
-			return;
-		}
-		memcpy(GlobalLock(hg), text.c_str(), text.size() + 1);
-		GlobalUnlock(hg);
-		SetClipboardData(CF_TEXT, hg);
-		CloseClipboard();
-		GlobalFree(hg);
-#endif
+			auto element = text(s.label);
+			if (s.active)
+			{
+				const Color active_color = (s.index == 0) ? Color::Cyan : Color::Blue;
+				element |= bold | color(active_color);
+			}
+			auto item_content = s.focused ? hbox({text("[") | dim, element, text("]") | dim}) : element;
+			item_content	  = item_content | center | size(WIDTH, EQUAL, 10);
+			if (s.index > 0)
+			{
+				return hbox({separator(), item_content});
+			}
+			return item_content;
+		};
+		auto tab_toggle = Menu(&tab_labels, &state.tab_idx, tab_opt);
+		auto tab_view	= Container::Tab({home_page, about_page}, &state.tab_idx);
+
+		// 3. 组合根容器
+		const auto root_container = Container::Vertical({tab_toggle, tab_view, btn_start});
+
+		// 4. 添加全局事件捕获
+		const auto event_handler = root_container
+			| CatchEvent(
+									   [is_busy](const Event & /*unused*/)
+									   {
+										   return is_busy(); // 如果忙碌，吞掉所有事件
+									   });
+
+		// 5. 定义主渲染器
+		return Renderer(event_handler,
+						[=, &state]
+						{
+							const bool busy = is_busy();
+
+							// 渲染头部
+							auto header = RenderHeader(tab_toggle);
+
+							// 根据 Tab 页面决定布局逻辑
+							if (state.tab_idx == 1)
+							{
+								// 关于页：全屏显示内容，不渲染底部状态栏
+								return vbox({header, about_page->Render() | flex});
+							}
+							// 主页：显示内容 + 底部状态栏
+							auto footer = RenderStatusBar(state, busy, btn_start);
+
+							return vbox({header, home_page->Render() | flex, footer});
+						});
 	}
 
-	// 辅助函数：打开文件夹
-	void open_directory(const std::string &path)
-	{
-#ifdef _WIN32
-		// 使用 ShellExecute 打开资源管理器
-		ShellExecuteA(nullptr, "open", path.c_str(), nullptr, nullptr, SW_SHOW);
-#endif
-	}
+	// --- 内部实现细节 ---
 
-	Component make_main_layout(AppState &state)
+	static Component MakeHomeTab(AppState &state)
 	{
+		// 扫描动作
 		auto scan_action = [&state]
 		{
 			state.file_list.clear();
@@ -57,10 +97,10 @@ namespace SteamShowcaseGen::Ui
 			state.current_log		= std::string(txt::LOG_SCANNING);
 			try
 			{
-				if (const std::filesystem::path dir_path(state.src_dir); std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path))
+				if (const fs::path dir_path(state.src_dir); fs::exists(dir_path) && fs::is_directory(dir_path))
 				{
-					static constexpr std::array supported = {".mp4", ".avi", ".mov", ".mkv", ".png", ".jpg", ".jpeg", ".webp"};
-					for (const auto &entry: std::filesystem::directory_iterator(dir_path))
+					static constexpr std::array supported = {".mp4", ".avi", ".mov", ".mkv", ".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff"};
+					for (const auto &entry: fs::directory_iterator(dir_path))
 					{
 						if (entry.is_regular_file())
 						{
@@ -95,33 +135,28 @@ namespace SteamShowcaseGen::Ui
 			}
 		};
 
+		// 组件定义
+		InputOption input_opt;
+		input_opt.multiline = false;
+
+		auto input_src	  = Input(&state.src_dir, std::string(txt::PLACEHOLDER_SRC), input_opt);
+		auto btn_scan	  = Button(std::string(txt::BTN_SCAN), scan_action, ButtonOption::Ascii());
+		auto btn_open_src = Button(std::string(txt::BTN_OPEN), [&] { Platform::OpenDirectory(state.src_dir); }, ButtonOption::Ascii());
+
+		auto menu_file	  = Menu(&state.file_list, &state.selected_file_idx);
+		auto input_out	  = Input(&state.out_dir, std::string(txt::PLACEHOLDER_OUT), input_opt);
+		auto btn_open_out = Button(std::string(txt::BTN_OPEN), [&] { Platform::OpenDirectory(state.out_dir); }, ButtonOption::Ascii());
+
+		auto slider_samp = Slider("", &state.sampling_rate, 1, 10, 1);
+
 		static std::vector q_labels = {
 			std::string(txt::QUALITY_FAST), std::string(txt::QUALITY_MEDIUM), std::string(txt::QUALITY_HIGH), std::string(txt::QUALITY_BEST)};
-
 		MenuOption quality_opt;
 		quality_opt.entries_option.transform = [](const EntryState &s)
 		{
-			Color c;
-			switch (s.index)
-			{
-				case 0:
-					c = Color::RedLight;
-					break;
-				case 1:
-					c = Color::Yellow;
-					break;
-				case 2:
-					c = Color::Green;
-					break;
-				case 3:
-					c = Color::Blue;
-					break;
-				default:
-					c = Color::White;
-					break;
-			}
-			auto prefix = text(s.active ? "◉ " : "○ ") | color(Color::GrayLight);
-			auto label	= text(s.label) | color(c);
+			const Color c	   = (s.index == 0) ? Color::RedLight : (s.index == 1) ? Color::Yellow : (s.index == 2) ? Color::Green : Color::Blue;
+			auto		prefix = text(s.active ? "◉ " : "○ ") | color(Color::GrayLight);
+			auto		label  = text(s.label) | color(c);
 			if (s.active)
 			{
 				label |= bold;
@@ -133,102 +168,77 @@ namespace SteamShowcaseGen::Ui
 			}
 			return res;
 		};
-
-		InputOption input_opt;
-		input_opt.multiline = false;
-
-		// --- 组件定义 ---
-		auto input_src = Input(&state.src_dir, std::string(txt::PLACEHOLDER_SRC), input_opt);
-		auto btn_scan  = Button(std::string(txt::BTN_SCAN), scan_action, ButtonOption::Ascii());
-		// [新增] 打开源目录按钮
-		auto btn_open_src = Button(std::string(txt::BTN_OPEN), [&] { open_directory(state.src_dir); }, ButtonOption::Ascii());
-
-		auto menu_file = Menu(&state.file_list, &state.selected_file_idx);
-		auto input_out = Input(&state.out_dir, std::string(txt::PLACEHOLDER_OUT), input_opt);
-		// [新增] 打开输出目录按钮
-		auto btn_open_out = Button(std::string(txt::BTN_OPEN), [&] { open_directory(state.out_dir); }, ButtonOption::Ascii());
-
-		auto slider_samp  = Slider("", &state.sampling_rate, 1, 10, 1);
 		auto menu_quality = Menu(&q_labels, &state.quality_idx, quality_opt);
 
-		// 定义标准长度为 10
-		constexpr int STD_W = 10;
-
-		// [修改] 更新容器包含关系，加入新按钮以便处理焦点
+		// 布局容器
 		auto	   left_col	 = Container::Vertical({input_src, btn_scan, btn_open_src, menu_file});
 		auto	   right_col = Container::Vertical({input_out, btn_open_out, slider_samp, menu_quality});
 		const auto container = Container::Horizontal({left_col, right_col});
 
+		// 渲染逻辑
 		return Renderer(container,
 						[=, &state]
 						{
+							constexpr int	  STD_W		  = 10;
 							int				  div		  = 11 - state.sampling_rate;
 							const std::string display_str = (state.sampling_rate == 10) ? "N/A" : std::format("1/{}", div);
 
-							// [修改] 资源视图 (左侧卡片)
-							const auto resource_view = vbox({hbox({text(std::string(txt::LABEL_DIR_SRC)) | vcenter | size(WIDTH, EQUAL, STD_W),
-																   separator(),
-																   input_src->Render() | size(WIDTH, EQUAL, 24),
-																   filler(),
-																   separator(),
-																   btn_scan->Render() | center | size(WIDTH, EQUAL, STD_W),
-																   // [新增] 扫描按钮右侧的分割线和打开按钮
-																   separator(),
-																   btn_open_src->Render() | center | size(WIDTH, EQUAL, STD_W)})
-																 | size(HEIGHT, EQUAL, 1),
+							auto resource_view = vbox({hbox({text(std::string(txt::LABEL_DIR_SRC)) | vcenter | size(WIDTH, EQUAL, STD_W),
 															 separator(),
-															 vbox({text(std::string((txt::LABEL_FILE_LIST))) | bold,
-																   separator(),
-																   hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 56)})})
-																 | flex})
+															 input_src->Render() | size(WIDTH, EQUAL, 24),
+															 filler(),
+															 separator(),
+															 btn_scan->Render() | center | size(WIDTH, EQUAL, STD_W),
+															 separator(),
+															 btn_open_src->Render() | center | size(WIDTH, EQUAL, STD_W)})
+														   | size(HEIGHT, EQUAL, 1),
+													   separator(),
+													   vbox({text(std::string(txt::LABEL_FILE_LIST)) | bold,
+															 separator(),
+															 hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 56)})})
+														   | flex})
 								| border | flex;
 
-							// [修改] 设置视图 (右侧卡片)
-							const auto config_view = vbox({hbox({text(std::string((txt::LABEL_DIR_OUT))) | vcenter | size(WIDTH, EQUAL, STD_W),
-																 separator(),
-																 input_out->Render() | size(WIDTH, EQUAL, 24),
-																 filler(),
-																 // 这一部分内容的作用是模拟扫描按钮的占用空间
-																 text(" ") | size(WIDTH, EQUAL, STD_W + 1),
-																 separator(),
-																 btn_open_out->Render() | center | size(WIDTH, EQUAL, STD_W)})
-															   | size(HEIGHT, EQUAL, 1),
+							auto config_view = vbox({hbox({text(std::string(txt::LABEL_DIR_OUT)) | vcenter | size(WIDTH, EQUAL, STD_W),
 														   separator(),
-														   hbox({text(std::string((txt::LABEL_SAMPLING))) | vcenter | size(WIDTH, EQUAL, STD_W),
-																 separator(),
-																 slider_samp->Render() | flex,
-																 separator(),
-																 text(display_str) | dim | center | size(WIDTH, EQUAL, STD_W)})
-															   | size(HEIGHT, EQUAL, 1),
+														   input_out->Render() | size(WIDTH, EQUAL, 24),
+														   filler(),
+														   text(" ") | size(WIDTH, EQUAL, STD_W + 1),
 														   separator(),
-														   text(std::string((txt::LABEL_QUALITY))) | bold,
+														   btn_open_out->Render() | center | size(WIDTH, EQUAL, STD_W)})
+														 | size(HEIGHT, EQUAL, 1),
+													 separator(),
+													 hbox({text(std::string(txt::LABEL_SAMPLING)) | vcenter | size(WIDTH, EQUAL, STD_W),
 														   separator(),
-														   hbox({text(" "), menu_quality->Render() | flex}) | flex})
+														   slider_samp->Render() | flex,
+														   separator(),
+														   text(display_str) | dim | center | size(WIDTH, EQUAL, STD_W)})
+														 | size(HEIGHT, EQUAL, 1),
+													 separator(),
+													 text(std::string(txt::LABEL_QUALITY)) | bold,
+													 separator(),
+													 hbox({text(" "), menu_quality->Render() | flex}) | flex})
 								| border | flex;
 
 							return hbox({resource_view, text(" "), config_view});
 						});
 	}
 
-	Component make_about_layout()
+	static Component MakeAboutTab()
 	{
-		// 1. 准备代码字符串 (用于复制)
 		static const std::string full_code_str = std::string(txt::GUIDE_CODE_1) + std::string(txt::GUIDE_CODE_2) + std::string(txt::GUIDE_CODE_3);
-
-		auto copied_state = std::make_shared<bool>(false);
+		auto					 copied_state  = std::make_shared<bool>(false);
 
 		auto btn_option		 = ButtonOption::Ascii();
 		btn_option.transform = [copied_state](const EntryState &s)
 		{
 			const auto label	 = *copied_state ? txt::BTN_COPIED : txt::BTN_COPY;
 			const auto color_val = *copied_state ? Color::Green : Color::Blue;
-
-			auto content = text(std::string(label)) | bold | color(color_val);
+			auto	   content	 = text(std::string(label)) | bold | color(color_val);
 			if (s.focused)
 			{
-				content = content | inverted;
+				content |= inverted;
 			}
-
 			return hbox({text("[") | dim, content, text("]") | dim});
 		};
 
@@ -236,7 +246,7 @@ namespace SteamShowcaseGen::Ui
 			std::string(txt::BTN_COPY),
 			[=]
 			{
-				copy_to_clipboard(full_code_str);
+				Platform::CopyToClipboard(full_code_str);
 				*copied_state = true;
 			},
 			btn_option);
@@ -245,7 +255,6 @@ namespace SteamShowcaseGen::Ui
 			btn_copy,
 			[=]
 			{
-				// ================= 上半部分：系统信息 =================
 				const auto info_content =
 					vbox({hbox(
 						{hbox({text(std::string(txt::LABEL_VERSION)) | dim, text(std::string(txt::VAL_VERSION)) | bold | color(Color::Blue)}) | center | flex,
@@ -258,7 +267,6 @@ namespace SteamShowcaseGen::Ui
 							 | center | flex})})
 					| borderEmpty;
 
-				// ================= 下半部分：教程卡片 =================
 				const auto code_block = vbox({text(std::string(txt::GUIDE_CODE_1)) | color(Color::Yellow),
 											  text(std::string(txt::GUIDE_CODE_2)) | color(Color::Yellow),
 											  text(std::string(txt::GUIDE_CODE_3)) | color(Color::Yellow),
@@ -268,47 +276,75 @@ namespace SteamShowcaseGen::Ui
 
 				const auto guide_content =
 					vbox({
-						// 步骤 1: 软件内操作
 						hbox({text("1. ") | bold | color(Color::Blue), text(std::string(txt::GUIDE_STEP_1_TEXT))}),
 						text(" "),
-
-						// 步骤 2: 访问网页
 						hbox({text("2. ") | bold | color(Color::Blue),
 							  text(std::string(txt::GUIDE_STEP_2_TEXT)),
 							  text(std::string(txt::GUIDE_URL)) | color(Color::BlueLight) | underlined | hyperlink("https://" + std::string(txt::GUIDE_URL))}),
 						text(" "),
-
-						// 步骤 3: 控制台 (纯文本说明)
 						hbox({text("3. ") | bold | color(Color::Blue),
 							  text(std::string(txt::GUIDE_STEP_3_TEXT_PRE)),
 							  text(std::string(txt::GUIDE_STEP_3_KEY)) | bold | color(Color::White) | bgcolor(Color::Red),
 							  text(std::string(txt::GUIDE_STEP_3_TEXT_MID)),
 							  text(std::string(txt::GUIDE_STEP_3_ACTION)) | bold | color(Color::RedLight)}),
 						text(" "),
-
-						// 代码块
 						code_block | flex,
 						text(" "),
-
-						// 步骤 4: 保存
 						hbox({text("4. ") | bold | color(Color::Blue), text(std::string(txt::GUIDE_STEP_4_TEXT))}),
 					})
 					| borderEmpty;
 
-				return vbox({window(text(std::string(txt::ABOUT_HEADER_SYSTEM)) | center | bold, info_content),
+				return vbox({window(text(std::string(txt::ABOUT_HEADER_APP)) | center | bold, info_content),
 							 window(text(std::string(txt::ABOUT_HEADER_GUIDE)) | center | bold, guide_content) | flex});
 			});
 	}
 
-	Element render_status_bar(const AppState &state, const bool is_processing, const Component &btn_start)
+	static Component MakeStartButton(const std::function<void()> &on_start, const std::function<bool()> &is_busy)
 	{
-		const auto icon = is_processing ? spinner(12, state.spinner_index) | color(Color::Yellow) | bold : text("●") | color(Color::Green);
+		ButtonOption opt = ButtonOption::Ascii();
+		opt.transform	 = [is_busy](const EntryState &s)
+		{
+			const bool busy	   = is_busy();
+			const auto label   = busy ? txt::BTN_PROCESSING : txt::BTN_START;
+			const auto col	   = busy ? Color::Red : (s.focused ? Color::GreenLight : Color::Green);
+			auto	   content = text(std::string(label)) | bold | color(col);
+			if (s.focused && !busy)
+			{
+				return hbox({text("[") | color(Color::GrayLight), content, text("]") | color(Color::GrayLight)}) | center;
+			}
+			return hbox({text(" "), content, text(" ")}) | center;
+		};
+		return Button("", on_start, opt);
+	}
 
-		// [开始按钮] 这里保持原样 (size|center)，因为 btn_start 内部 render 已经处理了内容居中，这里是对整个按钮组件居中
-		return hbox({icon | center | size(WIDTH, EQUAL, 3),
+	static Element RenderHeader(const Component &tab_toggle)
+	{
+		return hbox({text(std::string(txt::TITLE)) | bold | color(Color::Blue), filler(), text(" "), tab_toggle->Render()}) | borderRounded
+			| color(Color::Default) | size(HEIGHT, EQUAL, 3);
+	}
+
+	static Element RenderStatusBar(const AppState &state, const bool is_busy, const Component &btn_start)
+	{
+		Element spinner_elem;
+		if (is_busy)
+		{
+			spinner_elem = spinner(12, state.spinner_index) | bold | color(Color::Yellow);
+		}
+		else
+		{
+			const bool is_error = state.current_log.find("错误") != std::string::npos || state.current_log.find("Error") != std::string::npos
+				|| state.current_log.find("失败") != std::string::npos;
+
+			const Color dot_color = is_error ? Color::Red : Color::Green;
+
+			spinner_elem = text("●") | color(dot_color);
+		}
+
+		return hbox({spinner_elem | center | size(WIDTH, EQUAL, 3),
 					 text(state.current_log) | vcenter | flex,
 					 separator(),
 					 btn_start->Render() | size(WIDTH, EQUAL, 20) | center})
 			| border | size(HEIGHT, EQUAL, 3);
 	}
+
 } // namespace SteamShowcaseGen::Ui

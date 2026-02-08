@@ -32,10 +32,10 @@ namespace SteamShowcaseGen::AppText
 
 	inline constexpr std::string_view BTN_OPEN = "打开";
 
-	inline constexpr std::string_view QUALITY_FAST	 = "快速   (最近邻)";
-	inline constexpr std::string_view QUALITY_MEDIUM = "平衡   (双线性)";
-	inline constexpr std::string_view QUALITY_HIGH	 = "高质量 (双三次)";
-	inline constexpr std::string_view QUALITY_BEST	 = "极高   (Lanczos)";
+	inline constexpr std::string_view QUALITY_FAST	 = "快速 - 最近邻插值";
+	inline constexpr std::string_view QUALITY_MEDIUM = "均衡 - 双线性插值";
+	inline constexpr std::string_view QUALITY_HIGH	 = "质量 - 双三次插值";
+	inline constexpr std::string_view QUALITY_BEST	 = "最佳 - 兰索斯插值";
 
 	// 运行状态与日志
 	inline constexpr std::string_view BTN_START		 = "开始生成";
@@ -60,27 +60,22 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view LABEL_VERSION = " Version : ";
 	inline constexpr std::string_view LABEL_REPO	= " Repo : ";
 
-	inline constexpr std::string_view ABOUT_HEADER_SYSTEM = " 系统信息 ";
-	inline constexpr std::string_view ABOUT_HEADER_GUIDE  = " 使用教程 ";
+	inline constexpr std::string_view ABOUT_HEADER_APP	 = " 软件信息 ";
+	inline constexpr std::string_view ABOUT_HEADER_GUIDE = " 操作教程 ";
 
 	// 教程分段文本
-	// 步骤 1: 软件操作
-	inline constexpr std::string_view GUIDE_STEP_1_TEXT = "选择目标图片或视频 -> 点击 [开始生成] -> 得到切片文件";
+	inline constexpr std::string_view GUIDE_STEP_1_TEXT = "指定或使用默认输入输出目录 -> 选择目标图片或视频 -> 点击 [开始生成] -> 得到切片文件";
 
-	// 步骤 2: 访问网页
 	inline constexpr std::string_view GUIDE_STEP_2_TEXT = "访问 STEAM 艺术作品上传页: ";
 	inline constexpr std::string_view GUIDE_URL			= "steamcommunity.com/sharedfiles/edititem/767/3/";
 
-	// 步骤 3: 控制台代码 (拆分以支持高亮)
-	inline constexpr std::string_view GUIDE_STEP_3_TEXT_PRE = "上传切片 -> 按 ";
+	inline constexpr std::string_view GUIDE_STEP_3_TEXT_PRE = "上传切片 -> 按下 ";
 	inline constexpr std::string_view GUIDE_STEP_3_KEY		= "F12";
 	inline constexpr std::string_view GUIDE_STEP_3_TEXT_MID = " 打开控制台 -> 粘贴代码 -> ";
 	inline constexpr std::string_view GUIDE_STEP_3_ACTION	= "按回车运行";
 
-	// 步骤 4: 保存
 	inline constexpr std::string_view GUIDE_STEP_4_TEXT = "回到网页 -> 点击 [保存并继续]，重复此操作直到全部上传完成";
 
-	// 注入 JS 代码
 	inline constexpr std::string_view GUIDE_CODE_1 = "$J('#ConsumerAppID').val(480),";
 	inline constexpr std::string_view GUIDE_CODE_2 = "$J('[name=file_type]').val(0),";
 	inline constexpr std::string_view GUIDE_CODE_3 = "$J('[name=visibility]').val(0);";
@@ -89,7 +84,7 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view BTN_COPIED = " √ 已复制 ";
 
 	// 元数据
-	inline constexpr std::string_view VAL_REPO_NAME = "Code REPO";
+	inline constexpr std::string_view VAL_REPO_NAME = "Github";
 	inline constexpr std::string_view VAL_REPO_URL	= APP_REPO_URL;
 	inline constexpr std::string_view VAL_VERSION	= APP_VERSION;
 

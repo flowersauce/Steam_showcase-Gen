@@ -21,11 +21,9 @@ namespace SteamShowcaseGen
 	static const std::string LOG_DIR  = "log";
 	static const std::string LOG_FILE = LOG_DIR + "/debug.log";
 
-	// 辅助函数：写日志到文件和控制台
+	// 辅助函数：写日志到文件
 	static void log_init(const std::string &msg)
 	{
-		std::cerr << msg << std::endl;
-
 		if (!std::filesystem::exists(LOG_DIR))
 		{
 			if (!std::filesystem::create_directories(LOG_DIR))
@@ -307,7 +305,7 @@ namespace SteamShowcaseGen
 		std::ranges::transform(ext, ext.begin(), ::tolower);
 
 		// 处理图片
-		if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".webp")
+		if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".webp" || ext == ".tif" || ext == ".tiff")
 		{
 			cv::Mat img = cv::imread(source_path.string(), cv::IMREAD_COLOR);
 			if (img.empty())
