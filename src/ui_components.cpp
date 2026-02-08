@@ -39,6 +39,15 @@ namespace SteamShowcaseGen::Ui
 #endif
 	}
 
+	// 辅助函数：打开文件夹
+	void open_directory(const std::string &path)
+	{
+#ifdef _WIN32
+		// 使用 ShellExecute 打开资源管理器
+		ShellExecuteA(nullptr, "open", path.c_str(), nullptr, nullptr, SW_SHOW);
+#endif
+	}
+
 	Component make_main_layout(AppState &state)
 	{
 		auto scan_action = [&state]
@@ -128,18 +137,26 @@ namespace SteamShowcaseGen::Ui
 		InputOption input_opt;
 		input_opt.multiline = false;
 
-		auto input_src	  = Input(&state.src_dir, std::string(txt::PLACEHOLDER_SRC), input_opt);
-		auto btn_scan	  = Button(std::string(txt::BTN_SCAN), scan_action, ButtonOption::Ascii());
-		auto menu_file	  = Menu(&state.file_list, &state.selected_file_idx);
-		auto input_out	  = Input(&state.out_dir, std::string(txt::PLACEHOLDER_OUT), input_opt);
+		// --- 组件定义 ---
+		auto input_src = Input(&state.src_dir, std::string(txt::PLACEHOLDER_SRC), input_opt);
+		auto btn_scan  = Button(std::string(txt::BTN_SCAN), scan_action, ButtonOption::Ascii());
+		// [新增] 打开源目录按钮
+		auto btn_open_src = Button(std::string(txt::BTN_OPEN), [&] { open_directory(state.src_dir); }, ButtonOption::Ascii());
+
+		auto menu_file = Menu(&state.file_list, &state.selected_file_idx);
+		auto input_out = Input(&state.out_dir, std::string(txt::PLACEHOLDER_OUT), input_opt);
+		// [新增] 打开输出目录按钮
+		auto btn_open_out = Button(std::string(txt::BTN_OPEN), [&] { open_directory(state.out_dir); }, ButtonOption::Ascii());
+
 		auto slider_samp  = Slider("", &state.sampling_rate, 1, 10, 1);
 		auto menu_quality = Menu(&q_labels, &state.quality_idx, quality_opt);
 
 		// 定义标准长度为 10
 		constexpr int STD_W = 10;
 
-		auto	   left_col	 = Container::Vertical({input_src, btn_scan, menu_file});
-		auto	   right_col = Container::Vertical({input_out, slider_samp, menu_quality});
+		// [修改] 更新容器包含关系，加入新按钮以便处理焦点
+		auto	   left_col	 = Container::Vertical({input_src, btn_scan, btn_open_src, menu_file});
+		auto	   right_col = Container::Vertical({input_out, btn_open_out, slider_samp, menu_quality});
 		const auto container = Container::Horizontal({left_col, right_col});
 
 		return Renderer(container,
@@ -148,26 +165,33 @@ namespace SteamShowcaseGen::Ui
 							int				  div		  = 11 - state.sampling_rate;
 							const std::string display_str = (state.sampling_rate == 10) ? "N/A" : std::format("1/{}", div);
 
-							// 资源视图
+							// [修改] 资源视图 (左侧卡片)
 							const auto resource_view = vbox({hbox({text(std::string(txt::LABEL_DIR_SRC)) | vcenter | size(WIDTH, EQUAL, STD_W),
 																   separator(),
-																   input_src->Render() | size(WIDTH, EQUAL, 40),
+																   input_src->Render() | size(WIDTH, EQUAL, 24),
 																   filler(),
 																   separator(),
-																   btn_scan->Render() | center | size(WIDTH, EQUAL, STD_W)})
+																   btn_scan->Render() | center | size(WIDTH, EQUAL, STD_W),
+																   // [新增] 扫描按钮右侧的分割线和打开按钮
+																   separator(),
+																   btn_open_src->Render() | center | size(WIDTH, EQUAL, STD_W)})
 																 | size(HEIGHT, EQUAL, 1),
 															 separator(),
 															 vbox({text(std::string((txt::LABEL_FILE_LIST))) | bold,
 																   separator(),
-																   hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 48)})})
+																   hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 56)})})
 																 | flex})
 								| border | flex;
 
-							// 设置视图
+							// [修改] 设置视图 (右侧卡片)
 							const auto config_view = vbox({hbox({text(std::string((txt::LABEL_DIR_OUT))) | vcenter | size(WIDTH, EQUAL, STD_W),
 																 separator(),
-																 input_out->Render() | size(WIDTH, EQUAL, 40),
-																 filler()})
+																 input_out->Render() | size(WIDTH, EQUAL, 24),
+																 filler(),
+																 // 这一部分内容的作用是模拟扫描按钮的占用空间
+																 text(" ") | size(WIDTH, EQUAL, STD_W + 1),
+																 separator(),
+																 btn_open_out->Render() | center | size(WIDTH, EQUAL, STD_W)})
 															   | size(HEIGHT, EQUAL, 1),
 														   separator(),
 														   hbox({text(std::string((txt::LABEL_SAMPLING))) | vcenter | size(WIDTH, EQUAL, STD_W),

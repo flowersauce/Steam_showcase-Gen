@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.1)
-project(Steam_showcase-Gen VERSION 1.0.0 LANGUAGES C CXX)
+project(Steam_showcase-Gen VERSION 1.0.1 LANGUAGES C CXX)
 
 set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "" FORCE)
 

@@ -30,6 +30,8 @@ namespace SteamShowcaseGen::AppText
 	inline constexpr std::string_view LABEL_SAMPLING  = " 帧采样率";
 	inline constexpr std::string_view LABEL_QUALITY	  = " 缩放质量";
 
+	inline constexpr std::string_view BTN_OPEN = "打开";
+
 	inline constexpr std::string_view QUALITY_FAST	 = "快速   (最近邻)";
 	inline constexpr std::string_view QUALITY_MEDIUM = "平衡   (双线性)";
 	inline constexpr std::string_view QUALITY_HIGH	 = "高质量 (双三次)";
