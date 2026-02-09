@@ -195,7 +195,7 @@ namespace SteamShowcaseGen::Ui
 													   separator(),
 													   vbox({text(std::string(txt::LABEL_FILE_LIST)) | bold,
 															 separator(),
-															 hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 56)})})
+															 hbox({text(" "), menu_file->Render() | vscroll_indicator | frame | size(WIDTH, EQUAL, 50)})})
 														   | flex})
 								| border | flex;
 
