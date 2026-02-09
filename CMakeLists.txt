@@ -18,7 +18,7 @@ endif ()
 # 项目定义
 # ==========================================================
 project(Steam_showcase-Gen
-        VERSION 1.1.0
+        VERSION 1.1.1
         LANGUAGES C CXX
 )
 
